@@ -1,7 +1,7 @@
 var SkyRTC = function() {
     var PeerConnection = (window.PeerConnection || window.webkitPeerConnection00 || window.webkitRTCPeerConnection || window.mozRTCPeerConnection);
     var URL = (window.URL || window.webkitURL || window.msURL || window.oURL);
-    var getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
+    var getUserMedia = (navigator.mediaDevices.getUserMedia || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia);
     var nativeRTCIceCandidate = (window.mozRTCIceCandidate || window.RTCIceCandidate);
     var nativeRTCSessionDescription = (window.mozRTCSessionDescription || window.RTCSessionDescription); // order is very important: "RTCSessionDescription" defined in Nighly but useless
     var moz = !!navigator.mozGetUserMedia;
@@ -99,6 +99,7 @@ var SkyRTC = function() {
 
         socket.onmessage = function(message) {
             var json = JSON.parse(message.data);
+            console.error(message)
             if (json.eventName) {
                 that.emit(json.eventName, json.data);
             } else {
@@ -133,6 +134,7 @@ var SkyRTC = function() {
         });
 
         this.on("_ice_candidate", function(data) {
+            console.error(data)
             var candidate = new nativeRTCIceCandidate(data);
             var pc = that.peerConnections[data.socketId];
             pc.addIceCandidate(candidate);
@@ -198,18 +200,35 @@ var SkyRTC = function() {
 
         if (getUserMedia) {
             this.numStreams++;
-            getUserMedia.call(navigator, options, function(stream) {
+            // getUserMedia.call(navigator, options, function(stream) {
+            //         that.localMediaStream = stream;
+            //         that.initializedStreams++;
+            //         that.emit("stream_created", stream);
+            //         if (that.initializedStreams === that.numStreams) {
+            //             that.emit("ready");
+            //         }
+            //     },
+            //     function(error) {
+            //         console.error(error)
+            //         that.emit("stream_create_error", error);
+            //     });
+
+                const stream = navigator.mediaDevices.getUserMedia(
+					{
+						video :
+						{
+							deviceId : { exact: device.deviceId },
+							...VIDEO_CONSTRAINS[resolution]
+						}
+                    });
                     that.localMediaStream = stream;
                     that.initializedStreams++;
                     that.emit("stream_created", stream);
                     if (that.initializedStreams === that.numStreams) {
                         that.emit("ready");
                     }
-                },
-                function(error) {
-                    that.emit("stream_create_error", error);
-                });
         } else {
+            console.error("不支持")
             that.emit("stream_create_error", new Error('WebRTC is not yet supported in this browser.'));
         }
     };
@@ -231,9 +250,9 @@ var SkyRTC = function() {
             element.mozSrcObject = stream;
             element.play();
         } else {
-            element.src = webkitURL.createObjectURL(stream);
+            element.srcObject = stream;
         }
-        element.src = webkitURL.createObjectURL(stream);
+        element.srcObject = stream;
     };
 
 
@@ -332,6 +351,7 @@ var SkyRTC = function() {
         };
 
         pc.onaddstream = function(evt) {
+            console.error("接收到数据流")
             that.emit('pc_add_stream', evt.stream, socketId, pc);
         };
 
